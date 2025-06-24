@@ -8,19 +8,8 @@
       "endpoint": "/billings",
       "method": "GET",
       "service_name": "BillingService",
-      "description": "Retrieves a list of billing records, excluding those with invalid type names",
+      "description": "Retrieves a list of all billing records excluding those with invalid names",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
-      "parameters": {
-        "header": [
-          {
-            "name": "Content-Type",
-            "type": "string",
-            "required": true,
-            "description": "Content type of the request",
-            "default": "application/json"
-          }
-        ]
-      },
       "responses": {
         "200": {
           "description": "List of billing records",
@@ -35,7 +24,7 @@
                 "type": "string",
                 "type_name": "string",
                 "pet_id": "integer",
-                "payment": "number",
+                "payment": "decimal",
                 "status": "string"
               }
             }
@@ -56,22 +45,13 @@
             "name": "id",
             "type": "integer",
             "required": true,
-            "description": "ID of the billing record to retrieve"
-          }
-        ],
-        "header": [
-          {
-            "name": "Content-Type",
-            "type": "string",
-            "required": true,
-            "description": "Content type of the request",
-            "default": "application/json"
+            "description": "Unique identifier of the billing record"
           }
         ]
       },
       "responses": {
         "200": {
-          "description": "The requested billing record",
+          "description": "Billing record details",
           "content_type": "application/json",
           "schema": {
             "type": "object",
@@ -81,7 +61,7 @@
               "type": "string",
               "type_name": "string",
               "pet_id": "integer",
-              "payment": "number",
+              "payment": "decimal",
               "status": "string"
             }
           }
@@ -103,7 +83,7 @@
       "endpoint": "/billings/{owner_id}/{pet_id}/{type}",
       "method": "GET",
       "service_name": "BillingService",
-      "description": "Retrieves a specific billing record by owner ID, pet ID, and type",
+      "description": "Retrieves a billing record by owner ID, pet ID and type",
       "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/urls.py",
       "parameters": {
         "path": [
@@ -111,34 +91,25 @@
             "name": "owner_id",
             "type": "integer",
             "required": true,
-            "description": "ID of the pet owner"
+            "description": "Owner ID associated with the billing record"
           },
           {
             "name": "pet_id",
             "type": "integer",
             "required": true,
-            "description": "ID of the pet"
+            "description": "Pet ID associated with the billing record"
           },
           {
             "name": "type",
             "type": "string",
             "required": true,
-            "description": "Type of billing record"
-          }
-        ],
-        "header": [
-          {
-            "name": "Content-Type",
-            "type": "string",
-            "required": true,
-            "description": "Content type of the request",
-            "default": "application/json"
+            "description": "Type of the billing record"
           }
         ]
       },
       "responses": {
         "200": {
-          "description": "The requested billing record",
+          "description": "Billing record details",
           "content_type": "application/json",
           "schema": {
             "type": "object",
@@ -148,7 +119,7 @@
               "type": "string",
               "type_name": "string",
               "pet_id": "integer",
-              "payment": "number",
+              "payment": "decimal",
               "status": "string"
             }
           }
@@ -176,7 +147,7 @@
         "body": {
           "type": "object",
           "required": true,
-          "description": "Billing record to create",
+          "description": "Billing record creation request",
           "properties": {
             "owner_id": {
               "type": "integer",
@@ -186,7 +157,7 @@
             "type": {
               "type": "string",
               "required": true,
-              "description": "Type of billing record"
+              "description": "Type of the billing"
             },
             "type_name": {
               "type": "string",
@@ -199,26 +170,17 @@
               "description": "ID of the pet"
             },
             "payment": {
-              "type": "number",
+              "type": "decimal",
               "required": true,
               "description": "Payment amount"
             },
             "status": {
               "type": "string",
               "required": true,
-              "description": "Status of the billing record"
+              "description": "Status of the billing"
             }
           }
-        },
-        "header": [
-          {
-            "name": "Content-Type",
-            "type": "string",
-            "required": true,
-            "description": "Content type of the request",
-            "default": "application/json"
-          }
-        ]
+        }
       },
       "responses": {
         "201": {
@@ -232,17 +194,14 @@
               "type": "string",
               "type_name": "string",
               "pet_id": "integer",
-              "payment": "number",
+              "payment": "decimal",
               "status": "string"
             }
           }
         },
         "400": {
-          "description": "Bad request - invalid data",
-          "content_type": "application/json",
-          "schema": {
-            "type": "object"
-          }
+          "description": "Invalid request - validation errors",
+          "content_type": "application/json"
         }
       }
     },
@@ -259,13 +218,13 @@
             "name": "id",
             "type": "integer",
             "required": true,
-            "description": "ID of the billing record to update"
+            "description": "Unique identifier of the billing record"
           }
         ],
         "body": {
           "type": "object",
           "required": true,
-          "description": "Updated billing record data",
+          "description": "Billing record update request",
           "properties": {
             "owner_id": {
               "type": "integer",
@@ -275,7 +234,7 @@
             "type": {
               "type": "string",
               "required": true,
-              "description": "Type of billing record"
+              "description": "Type of the billing"
             },
             "type_name": {
               "type": "string",
@@ -288,26 +247,17 @@
               "description": "ID of the pet"
             },
             "payment": {
-              "type": "number",
+              "type": "decimal",
               "required": true,
               "description": "Payment amount"
             },
             "status": {
               "type": "string",
               "required": true,
-              "description": "Status of the billing record"
+              "description": "Status of the billing"
             }
           }
-        },
-        "header": [
-          {
-            "name": "Content-Type",
-            "type": "string",
-            "required": true,
-            "description": "Content type of the request",
-            "default": "application/json"
-          }
-        ]
+        }
       },
       "responses": {
         "200": {
@@ -321,17 +271,14 @@
               "type": "string",
               "type_name": "string",
               "pet_id": "integer",
-              "payment": "number",
+              "payment": "decimal",
               "status": "string"
             }
           }
         },
         "400": {
-          "description": "Bad request - invalid data",
-          "content_type": "application/json",
-          "schema": {
-            "type": "object"
-          }
+          "description": "Invalid request - validation errors",
+          "content_type": "application/json"
         },
         "404": {
           "description": "Billing record not found",
@@ -349,23 +296,12 @@
       "type": "rest",
       "endpoint": "/health",
       "method": "GET",
-      "service_name": "BillingService",
-      "description": "Health check endpoint",
+      "service_name": "HealthService",
+      "description": "Health check endpoint for the service",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
-      "parameters": {
-        "header": [
-          {
-            "name": "Content-Type",
-            "type": "string",
-            "required": true,
-            "description": "Content type of the request",
-            "default": "application/json"
-          }
-        ]
-      },
       "responses": {
         "200": {
-          "description": "Service health status",
+          "description": "Service is healthy",
           "content_type": "application/json",
           "schema": {
             "type": "object",
