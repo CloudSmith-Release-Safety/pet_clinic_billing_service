@@ -8,11 +8,14 @@
       "endpoint": "/billings",
       "method": "GET",
       "service_name": "BillingService",
-      "description": "Retrieves a list of billing records, excluding those with type_names in the CheckList",
+      "description": "Lists all billing records excluding ones with invalid names from the checklist",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "parameters": {
+        "header": []
+      },
       "responses": {
         "200": {
-          "description": "List of billing records",
+          "description": "Returns a list of billing records",
           "content_type": "application/json",
           "schema": {
             "type": "array",
@@ -34,24 +37,24 @@
     },
     {
       "type": "rest",
-      "endpoint": "/billings/{id}",
+      "endpoint": "/billings/{pk}",
       "method": "GET",
       "service_name": "BillingService",
-      "description": "Retrieves a specific billing record by its ID",
+      "description": "Retrieves a specific billing record by ID",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "path": [
           {
-            "name": "id",
+            "name": "pk",
             "type": "integer",
             "required": true,
-            "description": "The ID of the billing record to retrieve"
+            "description": "Primary key of the billing record"
           }
         ]
       },
       "responses": {
         "200": {
-          "description": "Billing record details",
+          "description": "Returns the requested billing record",
           "content_type": "application/json",
           "schema": {
             "type": "object",
@@ -83,7 +86,7 @@
       "endpoint": "/billings/{owner_id}/{pet_id}/{type}",
       "method": "GET",
       "service_name": "BillingService",
-      "description": "Retrieves a billing record by owner ID, pet ID, and type",
+      "description": "Retrieves a specific billing record by owner ID, pet ID, and type",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "path": [
@@ -103,13 +106,13 @@
             "name": "type",
             "type": "string",
             "required": true,
-            "description": "Type of billing record"
+            "description": "Type of the billing"
           }
         ]
       },
       "responses": {
         "200": {
-          "description": "Billing record details",
+          "description": "Returns the requested billing record",
           "content_type": "application/json",
           "schema": {
             "type": "object",
@@ -147,7 +150,7 @@
         "body": {
           "type": "object",
           "required": true,
-          "description": "Billing record to create",
+          "description": "Billing record data",
           "properties": {
             "owner_id": {
               "type": "integer",
@@ -157,7 +160,7 @@
             "type": {
               "type": "string",
               "required": true,
-              "description": "Type of billing record"
+              "description": "Type of billing"
             },
             "type_name": {
               "type": "string",
@@ -210,7 +213,7 @@
     },
     {
       "type": "rest",
-      "endpoint": "/billings/{id}",
+      "endpoint": "/billings/{pk}",
       "method": "PUT",
       "service_name": "BillingService",
       "description": "Updates an existing billing record",
@@ -218,10 +221,10 @@
       "parameters": {
         "path": [
           {
-            "name": "id",
+            "name": "pk",
             "type": "integer",
             "required": true,
-            "description": "ID of the billing record to update"
+            "description": "Primary key of the billing record"
           }
         ],
         "body": {
@@ -231,32 +234,32 @@
           "properties": {
             "owner_id": {
               "type": "integer",
-              "required": true,
+              "required": false,
               "description": "ID of the pet owner"
             },
             "type": {
               "type": "string",
-              "required": true,
-              "description": "Type of billing record"
+              "required": false,
+              "description": "Type of billing"
             },
             "type_name": {
               "type": "string",
-              "required": true,
+              "required": false,
               "description": "Name of the billing type"
             },
             "pet_id": {
               "type": "integer",
-              "required": true,
+              "required": false,
               "description": "ID of the pet"
             },
             "payment": {
               "type": "number",
-              "required": true,
+              "required": false,
               "description": "Payment amount"
             },
             "status": {
               "type": "string",
-              "required": true,
+              "required": false,
               "description": "Payment status"
             }
           }
@@ -303,8 +306,9 @@
       "endpoint": "/health",
       "method": "GET",
       "service_name": "BillingService",
-      "description": "Health check endpoint for the service",
+      "description": "Health check endpoint to verify service status",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "parameters": {},
       "responses": {
         "200": {
           "description": "Service is healthy",
