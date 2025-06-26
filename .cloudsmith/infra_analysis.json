@@ -1,0 +1,302 @@
+{
+  "org_name": "multi-repo-org",
+  "repo_name": "pet_clinic_billing_service",
+  "repo_url": "https://github.com/multi-repo-org/pet_clinic_billing_service",
+  "infrastructure_providers": [
+    {
+      "provider_id": "dynamodb_billing_info",
+      "resource_type": "DynamoDB",
+      "resource_identifier": "BillingInfo",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "infrastructure_type": "SDK-Direct",
+      "description": "DynamoDB table that stores billing information logs for pet clinic transactions",
+      "interfaces": [
+        {
+          "interface_type": "database",
+          "endpoint_pattern": "dynamodb.${REGION}.amazonaws.com",
+          "operations": ["PutItem", "DeleteItem"],
+          "authentication": "IAM"
+        }
+      ],
+      "configuration": {
+        "primary_key": "ownerId",
+        "sort_key": "timestamp"
+      },
+      "environment_variables": ["REGION"],
+      "provider_type": "external"
+    },
+    {
+      "provider_id": "secrets_manager_db_credentials",
+      "resource_type": "SecretsManager",
+      "resource_identifier": "petclinic-python-dbsecret",
+      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
+      "infrastructure_type": "SDK-Direct",
+      "description": "AWS Secrets Manager secret containing database credentials for the pet clinic billing service",
+      "interfaces": [
+        {
+          "interface_type": "api",
+          "endpoint_pattern": "secretsmanager.${REGION}.amazonaws.com",
+          "operations": ["GetSecretValue"],
+          "authentication": "IAM"
+        }
+      ],
+      "configuration": {
+        "secret_name": "petclinic-python-dbsecret"
+      },
+      "environment_variables": ["SECRET_NAME", "REGION"],
+      "provider_type": "external"
+    },
+    {
+      "provider_id": "ecr_container_registry",
+      "resource_type": "ECR",
+      "resource_identifier": "111122223333.dkr.ecr.us-west-2.amazonaws.com/python-petclinic-billing-service",
+      "file_path": "scripts/eks/appsignals/sample-app/billing-service-deployment.yaml",
+      "infrastructure_type": "Kubernetes",
+      "description": "ECR repository hosting the Docker image for the pet clinic billing service",
+      "interfaces": [
+        {
+          "interface_type": "container-registry",
+          "endpoint_pattern": "111122223333.dkr.ecr.us-west-2.amazonaws.com",
+          "operations": ["PullImage"],
+          "authentication": "IAM"
+        }
+      ],
+      "configuration": {
+        "repository_name": "python-petclinic-billing-service"
+      },
+      "provider_type": "external"
+    },
+    {
+      "provider_id": "eks_cluster",
+      "resource_type": "EKS",
+      "resource_identifier": "pet-clinic-eks-cluster",
+      "file_path": "scripts/eks/appsignals/sample-app/billing-service-deployment.yaml",
+      "infrastructure_type": "Kubernetes",
+      "description": "EKS cluster hosting the pet clinic microservices",
+      "interfaces": [
+        {
+          "interface_type": "container-orchestration",
+          "endpoint_pattern": "eks.${REGION}.amazonaws.com",
+          "operations": ["CreateDeployment", "CreateService"],
+          "authentication": "IAM"
+        }
+      ],
+      "configuration": {
+        "serviceAccountName": "visits-service-account"
+      },
+      "provider_type": "external"
+    }
+  ],
+  "application_consumers": [
+    {
+      "consumer_id": "billing_view_dynamodb_logger",
+      "component_type": "class",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "language": "Python",
+      "description": "BillingViewSet component that logs billing information to DynamoDB after create/update operations",
+      "resource_discovery": {
+        "method": "environment variables",
+        "environment_variables": ["REGION"]
+      },
+      "authentication": {
+        "method": "IAM role",
+        "role_references": []
+      },
+      "sdk_usage": {
+        "sdk_type": "boto3",
+        "clients": ["dynamodb"]
+      },
+      "package_dependencies": ["boto3"],
+      "internal_dependencies": [],
+      "external_dependencies": [
+        {
+          "resource_type": "DynamoDB",
+          "resource_name": "BillingInfo",
+          "repository": "unknown"
+        }
+      ]
+    },
+    {
+      "consumer_id": "db_credentials_retriever",
+      "component_type": "function",
+      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
+      "language": "Python",
+      "description": "Function that retrieves database credentials from AWS Secrets Manager for database connections",
+      "resource_discovery": {
+        "method": "environment variables",
+        "environment_variables": ["SECRET_NAME", "REGION"]
+      },
+      "authentication": {
+        "method": "IAM role",
+        "role_references": []
+      },
+      "sdk_usage": {
+        "sdk_type": "boto3",
+        "clients": ["secretsmanager"]
+      },
+      "package_dependencies": ["boto3"],
+      "internal_dependencies": [],
+      "external_dependencies": [
+        {
+          "resource_type": "SecretsManager",
+          "resource_name": "petclinic-python-dbsecret",
+          "repository": "unknown"
+        }
+      ]
+    },
+    {
+      "consumer_id": "kubernetes_deployment",
+      "component_type": "service",
+      "file_path": "scripts/eks/appsignals/sample-app/billing-service-deployment.yaml",
+      "language": "YAML",
+      "description": "Kubernetes deployment configuration for the billing service that runs as a container in EKS",
+      "resource_discovery": {
+        "method": "environment variables",
+        "environment_variables": ["REGION", "DB_SERVICE_HOST"]
+      },
+      "authentication": {
+        "method": "Kubernetes service account",
+        "role_references": ["visits-service-account"]
+      },
+      "package_dependencies": [],
+      "internal_dependencies": [],
+      "external_dependencies": [
+        {
+          "resource_type": "ECR",
+          "resource_name": "111122223333.dkr.ecr.us-west-2.amazonaws.com/python-petclinic-billing-service",
+          "repository": "unknown"
+        },
+        {
+          "resource_type": "EKS",
+          "resource_name": "pet-clinic-eks-cluster",
+          "repository": "unknown"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "connection_id": "conn_billing_to_dynamodb",
+      "consumer_id": "billing_view_dynamodb_logger",
+      "provider_id": "dynamodb_billing_info",
+      "provider_resource_type": "DynamoDB",
+      "operation": "putItem",
+      "access_type": "write",
+      "description": "BillingViewSet logs billing information to DynamoDB after create/update operations",
+      "code_snippet": "client = boto3.client('dynamodb', region_name=os.environ.get('REGION', 'us-west-1'))\nresponse = client.put_item(TableName=table_name, Item=item)",
+      "source_file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "target_file_path": "N/A",
+      "configuration_source": "environment variable",
+      "criticality": "medium",
+      "connection_type": "direct",
+      "cross_repo": true,
+      "target_repo": "unknown"
+    },
+    {
+      "connection_id": "conn_billing_delete_dynamodb",
+      "consumer_id": "billing_view_dynamodb_logger",
+      "provider_id": "dynamodb_billing_info",
+      "provider_resource_type": "DynamoDB",
+      "operation": "deleteItem",
+      "access_type": "delete",
+      "description": "BillingViewSet deletes old billing information entries from DynamoDB to maintain only the latest",
+      "code_snippet": "client.delete_item(TableName=table_name, Key=key)",
+      "source_file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "target_file_path": "N/A",
+      "configuration_source": "environment variable",
+      "criticality": "low",
+      "connection_type": "direct",
+      "cross_repo": true,
+      "target_repo": "unknown"
+    },
+    {
+      "connection_id": "conn_settings_to_secrets_manager",
+      "consumer_id": "db_credentials_retriever",
+      "provider_id": "secrets_manager_db_credentials",
+      "provider_resource_type": "SecretsManager",
+      "operation": "getSecretValue",
+      "access_type": "read",
+      "description": "Django settings retrieves database credentials from AWS Secrets Manager for PostgreSQL connections",
+      "code_snippet": "client = boto3.client('secretsmanager', region_name=region_name)\nresponse = client.get_secret_value(SecretId=secret_name)",
+      "source_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
+      "target_file_path": "N/A",
+      "configuration_source": "environment variable",
+      "criticality": "high",
+      "connection_type": "direct",
+      "cross_repo": true,
+      "target_repo": "unknown"
+    },
+    {
+      "connection_id": "conn_deployment_to_ecr",
+      "consumer_id": "kubernetes_deployment",
+      "provider_id": "ecr_container_registry",
+      "provider_resource_type": "ECR",
+      "operation": "pullImage",
+      "access_type": "read",
+      "description": "Kubernetes deployment pulls the billing service container image from ECR",
+      "code_snippet": "image: 111122223333.dkr.ecr.us-west-2.amazonaws.com/python-petclinic-billing-service:latest",
+      "source_file_path": "scripts/eks/appsignals/sample-app/billing-service-deployment.yaml",
+      "target_file_path": "N/A",
+      "configuration_source": "hardcoded",
+      "criticality": "high",
+      "connection_type": "direct",
+      "cross_repo": true,
+      "target_repo": "unknown"
+    },
+    {
+      "connection_id": "conn_deployment_to_eks",
+      "consumer_id": "kubernetes_deployment",
+      "provider_id": "eks_cluster",
+      "provider_resource_type": "EKS",
+      "operation": "createDeployment",
+      "access_type": "write",
+      "description": "Kubernetes manifest that creates a Deployment in the EKS cluster",
+      "code_snippet": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: billing-service-python",
+      "source_file_path": "scripts/eks/appsignals/sample-app/billing-service-deployment.yaml",
+      "target_file_path": "N/A",
+      "configuration_source": "hardcoded",
+      "criticality": "high",
+      "connection_type": "direct",
+      "cross_repo": true,
+      "target_repo": "unknown"
+    }
+  ],
+  "architecture": {
+    "application_type": "microservice",
+    "infrastructure_pattern": "container-based",
+    "deployment_approach": "CI/CD with Kubernetes manifests",
+    "configuration_management": "environment variables and Kubernetes ConfigMaps/Secrets",
+    "critical_paths": [
+      {
+        "path_name": "database_credential_retrieval",
+        "description": "Retrieval of database credentials from AWS Secrets Manager for connecting to PostgreSQL database",
+        "components": ["db_credentials_retriever", "secrets_manager_db_credentials"]
+      },
+      {
+        "path_name": "billing_logging_flow",
+        "description": "Flow for logging billing information to DynamoDB after CRUD operations",
+        "components": ["billing_view_dynamodb_logger", "dynamodb_billing_info"]
+      },
+      {
+        "path_name": "service_deployment",
+        "description": "Deployment of the billing service container to EKS",
+        "components": ["kubernetes_deployment", "ecr_container_registry", "eks_cluster"]
+      }
+    ],
+    "security_model": {
+      "authentication": "IAM roles for AWS services and Kubernetes service accounts",
+      "authorization": "Resource-based policies and RBAC",
+      "data_protection": "Encrypted secrets and database connections"
+    },
+    "cross_repo_dependencies": {
+      "provides_to": [],
+      "consumes_from": [
+        {
+          "repository": "unknown-infrastructure-repo",
+          "resources": ["DynamoDB:BillingInfo", "SecretsManager:petclinic-python-dbsecret", "ECR:python-petclinic-billing-service", "EKS:pet-clinic-eks-cluster"]
+        }
+      ],
+      "shared_infrastructure": true
+    }
+  }
+}
