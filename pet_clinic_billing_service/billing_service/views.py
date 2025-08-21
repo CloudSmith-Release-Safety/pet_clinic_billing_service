@@ -98,3 +98,21 @@ class BillingViewSet(viewsets.ViewSet):
 class HealthViewSet(viewsets.ViewSet):
     def list(self, request):
         return Response({'message':'ok'}, status=status.HTTP_200_OK)
+
+import boto3
+
+@api_view(['POST'])
+def create_insurance_claim(request):
+    """Create insurance claim in DynamoDB"""
+    dynamodb = boto3.resource('dynamodb', region_name='us-west-2')
+    table = dynamodb.Table('InsuranceClaims')
+    
+    claim = {
+        'claimId': request.data.get('claim_id'),
+        'ownerId': request.data.get('owner_id'),
+        'amount': request.data.get('amount'),
+        'status': 'pending'
+    }
+    
+    table.put_item(Item=claim)
+    return Response(claim, status=201)
