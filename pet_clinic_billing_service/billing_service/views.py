@@ -1,5 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from django.db.models import Subquery
 from .models import Billing,CheckList
 from .serializers import BillingSerializer
@@ -16,6 +17,21 @@ class BillingViewSet(viewsets.ViewSet):
     def list(self, request):
         invalid_names = CheckList.objects.values('invalid_name').distinct()[:100000]
         queryset = Billing.objects.exclude(
+            type_name__in=Subquery(invalid_names)
+        )
+        serializer = BillingSerializer(queryset, many=True)
+        return Response(serializer.data)
+        
+    @action(detail=False, methods=['get'], url_path='by-priority/(?P<priority>[^/.]+)')
+    def by_priority(self, request, priority=None):
+        """
+        Filter billings by priority level (low, medium, high)
+        """
+        if priority not in ['low', 'medium', 'high']:
+            return Response({'error': 'Invalid priority level'}, status=status.HTTP_400_BAD_REQUEST)
+
+        invalid_names = CheckList.objects.values('invalid_name').distinct()[:100000]
+        queryset = Billing.objects.filter(priority=priority).exclude(
             type_name__in=Subquery(invalid_names)
         )
         serializer = BillingSerializer(queryset, many=True)
