@@ -9,7 +9,7 @@
       "method": "GET",
       "service_name": "BillingService",
       "description": "Retrieves a list of all billing entries, excluding those with type_name found in the CheckList",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "header": [
           {
@@ -48,7 +48,7 @@
       "method": "GET",
       "service_name": "BillingService",
       "description": "Retrieves a specific billing entry by its ID",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "path": [
           {
@@ -102,7 +102,7 @@
       "method": "GET",
       "service_name": "BillingService",
       "description": "Retrieves a specific billing entry by owner ID, pet ID, and billing type",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "path": [
           {
@@ -168,7 +168,7 @@
       "method": "POST",
       "service_name": "BillingService",
       "description": "Creates a new billing entry",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "body": {
           "type": "object",
@@ -251,7 +251,7 @@
       "method": "PUT",
       "service_name": "BillingService",
       "description": "Updates an existing billing entry",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "parameters": {
         "path": [
           {
@@ -352,7 +352,7 @@
       "method": "GET",
       "service_name": "BillingService",
       "description": "Health check endpoint",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "responses": {
         "200": {
           "description": "Service is healthy",
@@ -367,22 +367,5 @@
       }
     }
   ],
-  "consumed_apis": [
-    {
-      "type": "rest",
-      "service": "DynamoDBService",
-      "endpoint": "/",
-      "method": "POST",
-      "description": "Logs billing information to DynamoDB",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/billing_service/views.py",
-      "request_payload": {
-        "TableName": "string",
-        "Item": {
-          "ownerId": "string",
-          "timestamp": "string",
-          "billing": "string"
-        }
-      }
-    }
-  ]
+  "consumed_apis": []
 }
