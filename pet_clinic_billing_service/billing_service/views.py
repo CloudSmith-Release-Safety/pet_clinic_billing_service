@@ -21,6 +21,9 @@ class BillingViewSet(viewsets.ViewSet):
         serializer = BillingSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    def list_v2(self, request):
+        return Response({'version': 'v2', 'billings': serializer.data})
+
     def retrieve(self, request, pk=None, owner_id=None, type=None, pet_id=None):
         try:
             billing_obj = None
