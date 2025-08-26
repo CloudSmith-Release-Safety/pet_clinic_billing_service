@@ -4,37 +4,40 @@
   "repo_url": "https://github.com/CloudSmith-Release-Safety/pet_clinic_billing_service",
   "infrastructure_providers": [
     {
-      "provider_id": "billing_info_dynamodb",
+      "provider_id": "billing_info_dynamodb_table",
       "resource_type": "DynamoDB",
       "resource_identifier": "BillingInfo",
-      "file_path": "pet_clinic_billing_service/billing_service/views.py",
+      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
       "infrastructure_type": "SDK-Direct",
-      "description": "DynamoDB table used to store billing information logs from the pet clinic application",
+      "description": "DynamoDB table created for storing billing information and logs",
       "interfaces": [
         {
           "interface_type": "database",
           "endpoint_pattern": "dynamodb.${region}.amazonaws.com",
-          "operations": ["PutItem", "DeleteItem"],
+          "operations": ["PutItem", "DeleteItem", "DescribeTable", "CreateTable"],
           "authentication": "IAM"
         }
       ],
       "configuration": {
-        "table_name": "BillingInfo",
-        "primary_key": {
-          "hash_key": "ownerId",
-          "range_key": "timestamp"
-        }
+        "hash_key": "ownerId",
+        "range_key": "timestamp",
+        "billing_mode": "PROVISIONED",
+        "read_capacity_units": 2,
+        "write_capacity_units": 2
+      },
+      "security": {
+        "access_control": "IAM role-based"
       },
       "environment_variables": ["REGION"],
-      "provider_type": "external"
+      "provider_type": "internal"
     },
     {
       "provider_id": "db_credentials_secret",
-      "resource_type": "Secrets Manager",
+      "resource_type": "SecretsManager",
       "resource_identifier": "petclinic-python-dbsecret",
       "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
       "infrastructure_type": "SDK-Direct",
-      "description": "AWS Secrets Manager secret containing database credentials for PostgreSQL",
+      "description": "AWS Secrets Manager secret storing database credentials",
       "interfaces": [
         {
           "interface_type": "api",
@@ -44,8 +47,7 @@
         }
       ],
       "configuration": {
-        "secret_name": "petclinic-python-dbsecret",
-        "auto_rotation": false
+        "secret_name": "petclinic-python-dbsecret"
       },
       "environment_variables": ["SECRET_NAME", "REGION"],
       "provider_type": "external"
@@ -56,19 +58,18 @@
       "resource_identifier": "python-petclinic-billing-service",
       "file_path": "push-ecr.sh",
       "infrastructure_type": "SDK-Direct",
-      "description": "ECR repository storing Docker images for the pet clinic billing service",
+      "description": "ECR repository for storing Docker images of the billing service",
       "interfaces": [
         {
           "interface_type": "api",
-          "endpoint_pattern": "${account}.dkr.ecr.${region}.amazonaws.com/python-petclinic-billing-service",
-          "operations": ["GetAuthorizationToken", "DescribeRepositories", "CreateRepository", "PutImage"],
+          "endpoint_pattern": "${account}.dkr.ecr.${region}.amazonaws.com",
+          "operations": ["GetAuthorizationToken", "CreateRepository", "PutImage"],
           "authentication": "IAM"
         }
       ],
       "configuration": {
         "repository_name": "python-petclinic-billing-service"
       },
-      "environment_variables": ["REGION", "ACCOUNT"],
       "provider_type": "external"
     },
     {
@@ -76,12 +77,12 @@
       "resource_type": "EKS",
       "resource_identifier": "petclinic-demo",
       "file_path": ".github/workflows/eks-deploy.yml",
-      "infrastructure_type": "SDK-Direct",
-      "description": "Amazon EKS cluster where the pet clinic billing service is deployed",
+      "infrastructure_type": "Kubernetes",
+      "description": "EKS cluster for deploying the billing service",
       "interfaces": [
         {
           "interface_type": "api",
-          "endpoint_pattern": "eks.${region}.amazonaws.com/clusters/petclinic-demo",
+          "endpoint_pattern": "eks.${region}.amazonaws.com",
           "operations": ["DescribeCluster", "UpdateKubeconfig"],
           "authentication": "IAM"
         }
@@ -90,109 +91,191 @@
         "cluster_name": "petclinic-demo",
         "region": "us-west-2"
       },
-      "environment_variables": ["TF_VAR_cluster_name", "AWS_REGION"],
       "provider_type": "external"
     },
     {
-      "provider_id": "rds_database",
+      "provider_id": "postgresql_rds",
       "resource_type": "RDS",
       "resource_identifier": "petclinic-database.cufgmmyvvbb2.us-west-2.rds.amazonaws.com",
       "file_path": "scripts/eks/appsignals/tf-deploy-k8s-res.sh",
-      "infrastructure_type": "SDK-Direct",
-      "description": "PostgreSQL RDS instance used as the pet clinic database",
+      "infrastructure_type": "External",
+      "description": "PostgreSQL RDS instance used as the billing service database",
       "interfaces": [
         {
           "interface_type": "database",
           "endpoint_pattern": "petclinic-database.cufgmmyvvbb2.us-west-2.rds.amazonaws.com:5432",
-          "operations": ["Connect", "Read", "Write"],
+          "operations": ["Connect", "Query", "Update"],
           "authentication": "Username/Password"
         }
       ],
       "configuration": {
         "host": "petclinic-database.cufgmmyvvbb2.us-west-2.rds.amazonaws.com",
-        "port": "5432",
-        "engine": "postgresql"
+        "port": "5432"
       },
-      "environment_variables": ["DB_SERVICE_HOST", "DB_SERVICE_PORT", "DB_NAME", "DB_USER"],
+      "environment_variables": ["DB_SERVICE_HOST", "DB_SERVICE_PORT", "DB_NAME", "DB_USER", "DB_USER_PASSWORD"],
+      "provider_type": "external"
+    },
+    {
+      "provider_id": "iam_role_for_eks",
+      "resource_type": "IAM",
+      "resource_identifier": "${AWS_ROLE_TO_ASSUME}",
+      "file_path": ".github/workflows/eks-deploy.yml",
+      "infrastructure_type": "External",
+      "description": "IAM role used for GitHub Actions to deploy to EKS",
+      "interfaces": [
+        {
+          "interface_type": "api",
+          "endpoint_pattern": "iam.amazonaws.com",
+          "operations": ["AssumeRole"],
+          "authentication": "OIDC"
+        }
+      ],
+      "configuration": {
+        "role_to_assume": "${AWS_ROLE_TO_ASSUME}"
+      },
       "provider_type": "external"
     }
   ],
   "application_consumers": [
     {
-      "consumer_id": "billing_service_views",
-      "component_type": "module",
+      "consumer_id": "billing_view_controller",
+      "component_type": "class",
       "file_path": "pet_clinic_billing_service/billing_service/views.py",
       "language": "Python",
-      "description": "Django views module that handles billing service operations including interaction with DynamoDB for logging billing information",
+      "description": "Django REST controller for billing operations that logs to DynamoDB",
       "resource_discovery": {
         "method": "environment variables",
         "environment_variables": ["REGION"]
       },
       "authentication": {
         "method": "IAM role",
-        "role_references": []
+        "role_references": ["visits-service-account"]
+      },
+      "sdk_usage": {
+        "sdk_type": "boto3",
+        "clients": ["dynamodb"]
+      },
+      "package_dependencies": ["boto3", "django", "djangorestframework"],
+      "internal_dependencies": [
+        {
+          "resource_type": "DynamoDB",
+          "resource_name": "BillingInfo",
+          "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py"
+        }
+      ],
+      "external_dependencies": []
+    },
+    {
+      "consumer_id": "django_settings",
+      "component_type": "module",
+      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
+      "language": "Python",
+      "description": "Django settings module that retrieves database credentials from AWS Secrets Manager",
+      "resource_discovery": {
+        "method": "environment variables",
+        "environment_variables": ["SECRET_NAME", "REGION", "DB_USER_PASSWORD"]
+      },
+      "authentication": {
+        "method": "IAM role",
+        "role_references": ["visits-service-account"]
+      },
+      "sdk_usage": {
+        "sdk_type": "boto3",
+        "clients": ["secretsmanager"]
+      },
+      "package_dependencies": ["boto3", "django", "psycopg2"],
+      "internal_dependencies": [],
+      "external_dependencies": [
+        {
+          "resource_type": "SecretsManager",
+          "resource_name": "petclinic-python-dbsecret",
+          "repository": "unknown"
+        },
+        {
+          "resource_type": "RDS",
+          "resource_name": "petclinic-database",
+          "repository": "unknown"
+        }
+      ]
+    },
+    {
+      "consumer_id": "dynamodb_initializer",
+      "component_type": "module",
+      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
+      "language": "Python",
+      "description": "Module that initializes the DynamoDB table during application startup",
+      "resource_discovery": {
+        "method": "environment variables",
+        "environment_variables": ["REGION"]
+      },
+      "authentication": {
+        "method": "IAM role",
+        "role_references": ["visits-service-account"]
       },
       "sdk_usage": {
         "sdk_type": "boto3",
         "clients": ["dynamodb"]
       },
       "package_dependencies": ["boto3"],
-      "internal_dependencies": [],
-      "external_dependencies": [
+      "internal_dependencies": [
         {
           "resource_type": "DynamoDB",
           "resource_name": "BillingInfo",
-          "repository": "unknown"
+          "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py"
         }
-      ]
+      ],
+      "external_dependencies": []
     },
     {
-      "consumer_id": "settings_module",
-      "component_type": "module",
-      "file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
-      "language": "Python",
-      "description": "Django settings module that configures the application and retrieves database credentials from AWS Secrets Manager",
-      "resource_discovery": {
-        "method": "environment variables",
-        "environment_variables": ["SECRET_NAME", "REGION"]
-      },
-      "authentication": {
-        "method": "IAM role",
-        "role_references": []
-      },
-      "sdk_usage": {
-        "sdk_type": "boto3",
-        "clients": ["secretsmanager"]
-      },
-      "package_dependencies": ["boto3"],
-      "internal_dependencies": [],
-      "external_dependencies": [
-        {
-          "resource_type": "Secrets Manager",
-          "resource_name": "petclinic-python-dbsecret",
-          "repository": "unknown"
-        }
-      ]
-    },
-    {
-      "consumer_id": "ci_cd_workflow",
+      "consumer_id": "github_workflow",
       "component_type": "workflow",
       "file_path": ".github/workflows/eks-deploy.yml",
       "language": "YAML",
-      "description": "GitHub Actions workflow for building and deploying the pet clinic billing service to EKS",
+      "description": "GitHub Actions workflow that builds and deploys the application to EKS",
       "resource_discovery": {
         "method": "environment variables",
         "environment_variables": ["AWS_REGION", "TF_VAR_cluster_name"]
       },
       "authentication": {
-        "method": "IAM role",
-        "role_references": ["${{ secrets.AWS_ROLE_TO_ASSUME }}"]
-      },
-      "sdk_usage": {
-        "sdk_type": "aws-cli",
-        "clients": ["sts", "eks", "ecr"]
+        "method": "OIDC",
+        "role_references": ["AWS_ROLE_TO_ASSUME"]
       },
       "package_dependencies": [],
+      "internal_dependencies": [],
+      "external_dependencies": [
+        {
+          "resource_type": "ECR",
+          "resource_name": "python-petclinic-billing-service",
+          "repository": "unknown"
+        },
+        {
+          "resource_type": "EKS",
+          "resource_name": "petclinic-demo",
+          "repository": "unknown"
+        },
+        {
+          "resource_type": "IAM",
+          "resource_name": "${AWS_ROLE_TO_ASSUME}",
+          "repository": "unknown"
+        }
+      ]
+    },
+    {
+      "consumer_id": "eks_deployer",
+      "component_type": "script",
+      "file_path": "scripts/eks/appsignals/tf-deploy-k8s-res.sh",
+      "language": "Bash",
+      "description": "Script that deploys Kubernetes resources to EKS including the billing service",
+      "resource_discovery": {
+        "method": "environment variables",
+        "configuration_files": ["scripts/eks/appsignals/sample-app/billing-service-deployment.yaml"]
+      },
+      "authentication": {
+        "method": "IAM role",
+        "role_references": ["AWS_ROLE_TO_ASSUME"]
+      },
+      "package_dependencies": [],
+      "internal_dependencies": [],
       "external_dependencies": [
         {
           "resource_type": "EKS",
@@ -202,60 +285,6 @@
         {
           "resource_type": "ECR",
           "resource_name": "python-petclinic-billing-service",
-          "repository": "unknown"
-        }
-      ]
-    },
-    {
-      "consumer_id": "ecr_push_script",
-      "component_type": "script",
-      "file_path": "push-ecr.sh",
-      "language": "Bash",
-      "description": "Shell script for building and pushing Docker images to ECR",
-      "resource_discovery": {
-        "method": "environment variables",
-        "environment_variables": ["ACCOUNT", "REGION"]
-      },
-      "authentication": {
-        "method": "IAM credentials",
-        "role_references": []
-      },
-      "sdk_usage": {
-        "sdk_type": "aws-cli",
-        "clients": ["ecr"]
-      },
-      "package_dependencies": [],
-      "external_dependencies": [
-        {
-          "resource_type": "ECR",
-          "resource_name": "python-petclinic-billing-service",
-          "repository": "unknown"
-        }
-      ]
-    },
-    {
-      "consumer_id": "deployment_script",
-      "component_type": "script",
-      "file_path": "scripts/eks/appsignals/tf-deploy-k8s-res.sh",
-      "language": "Bash",
-      "description": "Shell script for deploying Kubernetes resources to EKS",
-      "resource_discovery": {
-        "method": "environment variables and hardcoded values",
-        "environment_variables": ["REGION"]
-      },
-      "authentication": {
-        "method": "IAM role",
-        "role_references": []
-      },
-      "sdk_usage": {
-        "sdk_type": "aws-cli",
-        "clients": ["sts"]
-      },
-      "package_dependencies": [],
-      "external_dependencies": [
-        {
-          "resource_type": "EKS",
-          "resource_name": "petclinic-demo",
           "repository": "unknown"
         },
         {
@@ -268,50 +297,48 @@
   ],
   "connections": [
     {
-      "connection_id": "views_dynamodb_put",
-      "consumer_id": "billing_service_views",
-      "provider_id": "billing_info_dynamodb",
+      "connection_id": "views_dynamodb_put_item",
+      "consumer_id": "billing_view_controller",
+      "provider_id": "billing_info_dynamodb_table",
       "provider_resource_type": "DynamoDB",
       "operation": "put_item",
       "access_type": "write",
-      "description": "BillingViewSet logs billing information to DynamoDB when creating or updating a billing record",
-      "code_snippet": "response = client.put_item(\n                TableName=table_name,\n                Item=item\n            )",
+      "description": "Billing controller writes billing information to DynamoDB table for logging",
+      "code_snippet": "client.put_item(\n                TableName=table_name,\n                Item=item\n            )",
       "source_file_path": "pet_clinic_billing_service/billing_service/views.py",
-      "target_file_path": "pet_clinic_billing_service/billing_service/views.py",
-      "configuration_source": "hardcoded",
+      "target_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
+      "configuration_source": "environment variable",
       "criticality": "medium",
       "connection_type": "direct",
-      "cross_repo": true,
-      "target_repo": "unknown"
+      "cross_repo": false
     },
     {
-      "connection_id": "views_dynamodb_delete",
-      "consumer_id": "billing_service_views",
-      "provider_id": "billing_info_dynamodb",
+      "connection_id": "views_dynamodb_delete_item",
+      "consumer_id": "billing_view_controller",
+      "provider_id": "billing_info_dynamodb_table",
       "provider_resource_type": "DynamoDB",
       "operation": "delete_item",
       "access_type": "delete",
-      "description": "BillingViewSet deletes older items from DynamoDB after creating new ones",
+      "description": "Billing controller deletes billing records from DynamoDB after processing",
       "code_snippet": "client.delete_item(\n                    TableName=table_name,\n                    Key=key\n                )",
       "source_file_path": "pet_clinic_billing_service/billing_service/views.py",
-      "target_file_path": "pet_clinic_billing_service/billing_service/views.py",
-      "configuration_source": "hardcoded",
+      "target_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
+      "configuration_source": "environment variable",
       "criticality": "medium",
       "connection_type": "direct",
-      "cross_repo": true,
-      "target_repo": "unknown"
+      "cross_repo": false
     },
     {
-      "connection_id": "settings_secretsmanager_get",
-      "consumer_id": "settings_module",
+      "connection_id": "settings_secrets_manager_get_secret",
+      "consumer_id": "django_settings",
       "provider_id": "db_credentials_secret",
-      "provider_resource_type": "Secrets Manager",
+      "provider_resource_type": "SecretsManager",
       "operation": "get_secret_value",
       "access_type": "read",
-      "description": "Django settings module retrieves database credentials from AWS Secrets Manager",
-      "code_snippet": "response = client.get_secret_value(SecretId=secret_name)",
+      "description": "Django settings module retrieves database password from Secrets Manager",
+      "code_snippet": "client.get_secret_value(SecretId=secret_name)",
       "source_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
-      "target_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
+      "target_file_path": "N/A",
       "configuration_source": "environment variable",
       "criticality": "high",
       "connection_type": "direct",
@@ -319,67 +346,65 @@
       "target_repo": "unknown"
     },
     {
-      "connection_id": "workflow_ecr_login",
-      "consumer_id": "ci_cd_workflow",
-      "provider_id": "ecr_repository",
-      "provider_resource_type": "ECR",
-      "operation": "get-login-password",
-      "access_type": "read",
-      "description": "GitHub Actions workflow authenticates with ECR to push Docker images",
-      "code_snippet": "aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${REPOSITORY_PREFIX}",
-      "source_file_path": "push-ecr.sh",
-      "target_file_path": "push-ecr.sh",
-      "configuration_source": "environment variable",
-      "criticality": "high",
-      "connection_type": "direct",
-      "cross_repo": true,
-      "target_repo": "unknown"
-    },
-    {
-      "connection_id": "workflow_ecr_create_repo",
-      "consumer_id": "ecr_push_script",
-      "provider_id": "ecr_repository",
-      "provider_resource_type": "ECR",
-      "operation": "create-repository",
-      "access_type": "write",
-      "description": "ECR push script creates ECR repository if it doesn't exist",
-      "code_snippet": "aws ecr create-repository --repository-name python-petclinic-billing-service --region ${REGION} --no-cli-pager || true",
-      "source_file_path": "push-ecr.sh",
-      "target_file_path": "push-ecr.sh",
+      "connection_id": "init_dynamodb_create_table",
+      "consumer_id": "dynamodb_initializer",
+      "provider_id": "billing_info_dynamodb_table",
+      "provider_resource_type": "DynamoDB",
+      "operation": "create_table",
+      "access_type": "admin",
+      "description": "Application initializer creates the DynamoDB table if it doesn't exist",
+      "code_snippet": "dynamodb.create_table(\n            TableName=table_name,\n            KeySchema=key_schema,\n            AttributeDefinitions=attribute_definitions,\n            ProvisionedThroughput={\n                'ReadCapacityUnits': read_capacity_units,\n                'WriteCapacityUnits': write_capacity_units\n            }\n        )",
+      "source_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
+      "target_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
       "configuration_source": "hardcoded",
       "criticality": "high",
       "connection_type": "direct",
-      "cross_repo": true,
-      "target_repo": "unknown"
+      "cross_repo": false
     },
     {
-      "connection_id": "workflow_ecr_push_image",
-      "consumer_id": "ecr_push_script",
-      "provider_id": "ecr_repository",
-      "provider_resource_type": "ECR",
-      "operation": "push",
-      "access_type": "write",
-      "description": "ECR push script pushes Docker images to ECR",
-      "code_snippet": "docker push ${REPOSITORY_PREFIX}/python-petclinic-billing-service:latest",
-      "source_file_path": "push-ecr.sh",
-      "target_file_path": "push-ecr.sh",
-      "configuration_source": "environment variable",
+      "connection_id": "init_dynamodb_describe_table",
+      "consumer_id": "dynamodb_initializer",
+      "provider_id": "billing_info_dynamodb_table",
+      "provider_resource_type": "DynamoDB",
+      "operation": "describe_table",
+      "access_type": "read",
+      "description": "Application initializer checks if the DynamoDB table already exists",
+      "code_snippet": "dynamodb_client.describe_table(TableName=table_name)",
+      "source_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
+      "target_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/__init__.py",
+      "configuration_source": "hardcoded",
       "criticality": "high",
       "connection_type": "direct",
+      "cross_repo": false
+    },
+    {
+      "connection_id": "workflow_ecr_push",
+      "consumer_id": "github_workflow",
+      "provider_id": "ecr_repository",
+      "provider_resource_type": "ECR",
+      "operation": "PushImage",
+      "access_type": "write",
+      "description": "GitHub workflow builds and pushes Docker image to ECR",
+      "code_snippet": "./push-ecr.sh",
+      "source_file_path": ".github/workflows/eks-deploy.yml",
+      "target_file_path": "N/A",
+      "configuration_source": "environment variable",
+      "criticality": "high",
+      "connection_type": "indirect",
       "cross_repo": true,
       "target_repo": "unknown"
     },
     {
       "connection_id": "workflow_eks_update_kubeconfig",
-      "consumer_id": "ci_cd_workflow",
+      "consumer_id": "github_workflow",
       "provider_id": "eks_cluster",
       "provider_resource_type": "EKS",
-      "operation": "update-kubeconfig",
+      "operation": "UpdateKubeconfig",
       "access_type": "read",
-      "description": "GitHub Actions workflow configures kubectl to interact with the EKS cluster",
+      "description": "GitHub workflow updates kubeconfig to access the EKS cluster",
       "code_snippet": "aws eks update-kubeconfig --name ${{ env.TF_VAR_cluster_name }} --region ${{ env.AWS_REGION }} --alias ${{ env.TF_VAR_cluster_name }}",
       "source_file_path": ".github/workflows/eks-deploy.yml",
-      "target_file_path": ".github/workflows/eks-deploy.yml",
+      "target_file_path": "N/A",
       "configuration_source": "environment variable",
       "criticality": "high",
       "connection_type": "direct",
@@ -387,19 +412,36 @@
       "target_repo": "unknown"
     },
     {
-      "connection_id": "deployment_rds_reference",
-      "consumer_id": "deployment_script",
-      "provider_id": "rds_database",
-      "provider_resource_type": "RDS",
-      "operation": "connect",
-      "access_type": "read",
-      "description": "Deployment script references RDS endpoint in Kubernetes deployment configuration",
-      "code_snippet": "host=\"petclinic-database.cufgmmyvvbb2.us-west-2.rds.amazonaws.com\"",
+      "connection_id": "deploy_script_eks_apply",
+      "consumer_id": "eks_deployer",
+      "provider_id": "eks_cluster",
+      "provider_resource_type": "EKS",
+      "operation": "ApplyResources",
+      "access_type": "admin",
+      "description": "Deployment script applies Kubernetes resources to the EKS cluster",
+      "code_snippet": "kubectl -v=2 ${OPERATION} --namespace=$NAMESPACE -f -",
       "source_file_path": "scripts/eks/appsignals/tf-deploy-k8s-res.sh",
-      "target_file_path": "scripts/eks/appsignals/tf-deploy-k8s-res.sh",
-      "configuration_source": "hardcoded",
+      "target_file_path": "N/A",
+      "configuration_source": "command line",
       "criticality": "high",
-      "connection_type": "indirect",
+      "connection_type": "direct",
+      "cross_repo": true,
+      "target_repo": "unknown"
+    },
+    {
+      "connection_id": "settings_rds_connect",
+      "consumer_id": "django_settings",
+      "provider_id": "postgresql_rds",
+      "provider_resource_type": "RDS",
+      "operation": "Connect",
+      "access_type": "read",
+      "description": "Django application connects to PostgreSQL RDS for database operations",
+      "code_snippet": "DATABASES = {\n    \"postgresql\":{\n        \"ENGINE\": \"django.db.backends.postgresql\",\n        \"NAME\": os.environ.get('DB_NAME'),\n        \"USER\": os.environ.get('DB_USER'),\n        \"PASSWORD\": DB_PASSWORD,\n        \"HOST\": os.environ.get(\"DB_SERVICE_HOST\"),\n        \"PORT\": os.environ.get(\"DB_SERVICE_PORT\"),\n    }\n}",
+      "source_file_path": "pet_clinic_billing_service/pet_clinic_billing_service/settings.py",
+      "target_file_path": "N/A",
+      "configuration_source": "environment variable",
+      "criticality": "high",
+      "connection_type": "direct",
       "cross_repo": true,
       "target_repo": "unknown"
     }
@@ -408,36 +450,33 @@
     "application_type": "microservice",
     "infrastructure_pattern": "container-based",
     "deployment_approach": "CI/CD",
-    "configuration_management": "Environment variables with some secrets in AWS Secrets Manager",
+    "configuration_management": "environment variables and AWS Secrets Manager",
     "critical_paths": [
       {
-        "path_name": "database_credentials_retrieval",
-        "description": "Retrieval of database credentials from AWS Secrets Manager to connect to RDS PostgreSQL",
-        "involved_components": ["settings_module", "db_credentials_secret", "rds_database"]
+        "path_name": "database_connection",
+        "description": "Application connecting to PostgreSQL RDS using credentials from Secrets Manager",
+        "involved_components": ["django_settings", "db_credentials_secret", "postgresql_rds"]
       },
       {
-        "path_name": "billing_data_logging",
-        "description": "Logging of billing information to DynamoDB",
-        "involved_components": ["billing_service_views", "billing_info_dynamodb"]
+        "path_name": "billing_logging",
+        "description": "Billing service logging operations to DynamoDB",
+        "involved_components": ["billing_view_controller", "billing_info_dynamodb_table"]
       },
       {
         "path_name": "deployment_pipeline",
-        "description": "CI/CD pipeline for building and deploying the service to EKS",
-        "involved_components": ["ci_cd_workflow", "ecr_push_script", "ecr_repository", "eks_cluster"]
+        "description": "CI/CD pipeline building and deploying application to EKS",
+        "involved_components": ["github_workflow", "ecr_repository", "eks_cluster"]
       }
     ],
     "security_model": {
-      "authentication": "IAM roles for service authentication to AWS services",
-      "authorization": "IAM policies controlling access to AWS resources",
-      "data_protection": "Secure storage of database credentials in AWS Secrets Manager"
+      "authentication": "IAM roles with EKS service accounts for pod identity",
+      "authorization": "AWS managed policies and IAM role permissions",
+      "data_protection": "Secrets stored in AWS Secrets Manager"
     },
     "cross_repo_dependencies": {
       "provides_to": [],
       "consumes_from": [
-        {
-          "repository": "unknown",
-          "resources": ["BillingInfo", "petclinic-python-dbsecret", "petclinic-demo", "python-petclinic-billing-service", "petclinic-database"]
-        }
+        {"repository": "unknown", "resources": ["db_credentials_secret", "ecr_repository", "eks_cluster", "postgresql_rds", "iam_role_for_eks"]}
       ],
       "shared_infrastructure": true
     }
