@@ -36,6 +36,18 @@ class BillingViewSet(viewsets.ViewSet):
         )
         serializer = BillingSerializer(queryset, many=True)
         return Response(serializer.data)
+        
+    @action(detail=False, methods=['get'], url_path='by-status/(?P<status_filter>[^/.]+)')
+    def by_status(self, request, status_filter=None):
+        """
+        Filter billings by status
+        """
+        invalid_names = CheckList.objects.values('invalid_name').distinct()[:100000]
+        queryset = Billing.objects.filter(status=status_filter).exclude(
+            type_name__in=Subquery(invalid_names)
+        )
+        serializer = BillingSerializer(queryset, many=True)
+        return Response(serializer.data)
 
     def list_v2(self, request):
         return Response({'version': 'v2', 'billings': serializer.data})
